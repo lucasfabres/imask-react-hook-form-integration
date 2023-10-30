@@ -6,7 +6,7 @@ import "./App.css";
 import React from "react";
 
 function App() {
-  const { register, handleSubmit } = useForm();
+  const { register, handleSubmit, reset } = useForm();
   const renderCount = React.useRef(0);
 
   React.useEffect(() => {
@@ -15,6 +15,7 @@ function App() {
 
   const onSubmit = (values: object) => {
     window.alert(JSON.stringify(values, null, 2));
+    reset();
   };
 
   return (

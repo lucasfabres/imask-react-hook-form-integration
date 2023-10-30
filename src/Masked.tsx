@@ -1,38 +1,49 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import IMask from "imask";
-import React, { forwardRef } from "react";
-import { override } from "./overrideProps";
+import React, { forwardRef, useImperativeHandle, useMemo } from "react";
 
 type Props = {
-  mask: string;
+  mask: string | RegExp;
   pipeMaskedValues?: boolean;
 } & React.InputHTMLAttributes<HTMLInputElement>;
 
-function onChange(
-  event: React.ChangeEvent<HTMLInputElement>,
-  props: Props,
-  original?: (event: React.ChangeEvent<HTMLInputElement>) => void
-) {
-  const mask = IMask.createMask(props.mask);
-
-  // Apply mask
-  mask.resolve(event.target.value);
-
-  // Pipe unmasked value
-  event.target.value = mask.unmaskedValue;
-  original?.(event);
-
-  // Visualize masked value
-  event.target.value = mask.displayValue;
-}
-
 export const Masked = forwardRef(
-  (_props: Props, ref: React.ForwardedRef<HTMLInputElement>) => {
-    // Install masking hooks
-    const props = override(_props)
-      .hook("onChange", onChange)
-      .hook("onBlur", onChange)
-      .end();
+  (props: Props, ref: React.ForwardedRef<HTMLInputElement>) => {
+    const inputRef = React.useRef<HTMLInputElement>(null);
+    const Mask = useMemo(() => IMask.createMask(props.mask), [props.mask]);
 
-    return <input ref={ref} {...props} />;
+    useImperativeHandle(ref, () =>
+      Object.assign(inputRef.current!, {
+        get value() {
+          Mask.resolve(inputRef.current!.value);
+          return Mask.unmaskedValue;
+        },
+      })
+    );
+
+    const applyMask = (
+      event:
+        | React.ChangeEvent<HTMLInputElement>
+        | React.FocusEvent<HTMLInputElement>
+    ) => {
+      Mask.resolve(event.target.value);
+      event.target.value = Mask.displayValue;
+    };
+
+    const onChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      applyMask(event);
+
+      return props.onChange?.(event);
+    };
+
+    const onBlur = (event: React.FocusEvent<HTMLInputElement>) => {
+      applyMask(event);
+
+      return props.onBlur?.(event);
+    };
+
+    return (
+      <input {...props} ref={inputRef} onChange={onChange} onBlur={onBlur} />
+    );
   }
 );
